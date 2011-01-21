@@ -44,8 +44,8 @@ set client_min_messages = warning
 as $BODY$
 
   declare 
-    loval  timestamp;
-    hival  timestamp;
+    loval  date;
+    hival  date;
     counter int := 0 ; 
     pmonth date ;
     spart text ; 
@@ -55,9 +55,6 @@ as $BODY$
 
     tables = 0 ;
     indexes = 0 ; 
-
-
-    raise notice 'i_schema=>%, i_table=>%, i_column=>%, i_period=>%, i_pattern=>%, begin_date=>%, end_date=>%',i_schema, i_table, i_column, i_period, i_pattern, begin_date, end_date ; 
  
     FOR pmonth IN SELECT (begin_date + x * ('1 '||i_period)::interval )::date
                     FROM generate_series(0, partition.between(i_period, begin_date, end_date ) ) x
@@ -171,6 +168,54 @@ as $BODY$
 $BODY$
  LANGUAGE sql ;
 
+create or replace function partition.create_next
+(
+	OUT o_tables  integer,
+	OUT o_indexes integer
+)
+ returns record 
+LANGUAGE plpgsql
+set client_min_messages = warning
+as $BODY$
+declare
+
+  p_table record ;
+
+  tables int = 0 ; 
+  indexes int = 0 ; 
+
+begin
+
+  o_tables = 0 ;
+  o_indexes = 0 ; 
+
+  for p_table in select t.schemaname, t.tablename, t.keycolumn, p.part_type, p.to_char_pattern, (now() + p.next_part)::date as pdate 
+                   from partition.table t 
+                     inner join partition.pattern p
+		           on ( t.pattern=p.id )                   
+	             full join pg_tables pgt
+			   on ( pgt.schemaname=t.schemaname 
+                                and pgt.tablename=t.tablename ||'_'|| to_char ( now() + p.next_part , p.to_char_pattern  ) )
+		    where t.actif and pgt.schemaname is null and  pgt.tablename is null 
+		    order by  t.schemaname ||'.'|| t.tablename 
+		      ||'_'|| to_char ( now() + p.next_part , p.to_char_pattern  ) 
+    loop 
+
+    select * from partition.create( p_table.schemaname, p_table.tablename, p_table.keycolumn, p_table.part_type, p_table.to_char_pattern, p_table.pdate, p_table.pdate) 
+      into tables, indexes ; 
+
+    o_tables = o_tables + tables ;
+    o_indexes = o_indexes + indexes ; 
+
+  end loop ; 
+
+  return ;
+
+end ;
+$BODY$
+;
+
+
 create or replace function partition.drop
 (
 	i_schema text,
@@ -271,3 +316,32 @@ begin
 end ;
 $BODY$
 ;
+
+create or replace function partition.check_next_part
+(
+  OUT nagios_return_code int, 
+  OUT message text 
+)
+returns record
+language sql
+as $BODY$
+
+select case when count(missing_tables) > 0 then 2::int else 0::int end, 'Missing : ' || string_agg( missing_tables,', ')
+-- string_agg( missing_tables, ', ') 
+from ( select
+  t.schemaname ||'.'|| t.tablename 
+    ||'_'|| to_char ( now() + p.next_part , p.to_char_pattern  ) 
+    as missing_tables  
+  from partition.table t 
+    inner join partition.pattern p
+      on ( t.pattern=p.id )                   
+    full join pg_tables pgt
+      on ( pgt.schemaname=t.schemaname 
+           and pgt.tablename=t.tablename ||'_'|| to_char ( now() + p.next_part , p.to_char_pattern  ) )
+  where t.actif and pgt.schemaname is null and  pgt.tablename is null 
+  order by  t.schemaname ||'.'|| t.tablename 
+    ||'_'|| to_char ( now() + p.next_part , p.to_char_pattern  ) 
+) x 
+; 
+
+$BODY$ ; 

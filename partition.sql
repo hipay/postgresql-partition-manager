@@ -9,7 +9,7 @@ create table partition.pattern (
    id              char(1) not null, 
    part_type       text not null,
    to_char_pattern text not null,
-
+   next_part       interval not null,
    primary key ( id )
 ) ; 
 
@@ -26,9 +26,9 @@ create table partition.table (
 );
 
 insert into partition.pattern values 
-    ('Y','year','YYYY'),
-    ('M','month','YYYYMM'),
-    ('D','day', 'YYYYMMDD') 
+    ('Y','year','YYYY', '1 month'),
+    ('M','month','YYYYMM', '1 week'),
+    ('D','day', 'YYYYMMDD', '1 day') 
 ;
 
 \i part_api.sql 

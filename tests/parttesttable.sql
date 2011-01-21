@@ -16,7 +16,7 @@ select partition.create_part_trigger('test','test1an') ;
 select partition.create_part_trigger('test','test1mois') ;
 select partition.create_part_trigger('test','test1jour') ;
 
-select * from partition.create ('2010-08-01', '2011-06-30') ;
+select * from partition.create ('2011-01-01') ;
 
 commit ; 
 
