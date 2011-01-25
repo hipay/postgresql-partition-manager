@@ -25,6 +25,17 @@ create table partition.table (
    primary key ( schemaname, tablename )
 );
 
+create table partition.trigger ( 
+   schemaname       text not null, 
+   tablename        text not null,
+   triggername      text not null,
+   triggerdef       text not null, 
+   
+   foreign key ( schemaname, tablename )  references partition.table ( schemaname, tablename )
+) ; 
+
+
+
 insert into partition.pattern values 
     ('Y','year','YYYY', '1 month'),
     ('M','month','YYYYMM', '1 week'),

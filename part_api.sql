@@ -51,6 +51,7 @@ as $BODY$
     spart text ; 
     col text ; 
     qname text = i_schema || '.' || i_table ; 
+    v_triggerdef text ; 
   begin
 
     tables = 0 ;
@@ -72,12 +73,6 @@ as $BODY$
             || ' check ( '|| i_column  ||' >= ' || quote_literal( loval ) || ' and '|| i_column  ||' < ' || quote_literal( hival ) || ' )) '  
             || ' inherits ( ' || qname || ') ;' ;  
 
-          begin
-            execute 'alter table ' || a_tables[counter] || ' add primary key (id ) ; ' ; 
-          exception when others then
-            raise notice ' Create PK : % ', SQLERRM ; 
-          end ; 
-
           tables := tables + 1 ; 
   
           FOR col IN SELECT * FROM (VALUES ( i_column  )) t(c)
@@ -86,6 +81,21 @@ as $BODY$
             indexes := indexes + 1;
           END LOOP;
   
+          -- create trigger 
+          
+          for v_triggerdef in select replace( triggerdef,  qname ,  i_schema || '.' || spart  ) 
+             from partition.trigger 
+             where schemaname= i_schema and tablename = i_table
+          loop
+
+            raise notice 'Trigger : % ', v_triggerdef ; 
+
+            execute v_triggerdef ; 
+
+          end loop ; 
+
+          -- grant role 
+
         exception when duplicate_table then
           raise notice 'Create Part : % ', SQLERRM ; 
         end ; 
@@ -326,8 +336,7 @@ returns record
 language sql
 as $BODY$
 
-select case when count(missing_tables) > 0 then 2::int else 0::int end, 'Missing : ' || string_agg( missing_tables,', ')
--- string_agg( missing_tables, ', ') 
+select case when count(missing_tables) > 0 then 2::int else 0::int end, 'Missing : ' || string_agg( missing_tables,', ') 
 from ( select
   t.schemaname ||'.'|| t.tablename 
     ||'_'|| to_char ( now() + p.next_part , p.to_char_pattern  ) 

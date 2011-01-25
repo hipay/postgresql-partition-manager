@@ -55,3 +55,37 @@ $PART$ ; ' ;
 end ;
 $BODY$
 ; 
+
+
+create or replace function partition.set_trigger_def()
+returns trigger
+language plpgsql
+as $BODY$
+declare
+  r_trigg record ; 
+begin
+  if TG_OP = 'INSERT' then 
+    for r_trigg in select n.nspname, c.relname, 
+                          t.tgname, pg_get_triggerdef( t.oid ) as triggerdef
+      from pg_class c 
+        join pg_namespace n on c.relnamespace=n.oid
+        join pg_trigger t on c.oid=t.tgrelid 
+        where c.relkind='r' 
+        and ( t.tgconstraint is null or t.tgconstraint = 0 )
+        and n.nspname = new.schemaname and c.relname = new.tablename 
+    loop
+
+      insert into partition.trigger values (  r_trigg.nspname, r_trigg.relname, r_trigg.tgname, r_trigg.triggerdef ) ; 
+ 
+      execute 'drop trigger ' || r_trigg.tgname || ' on ' || r_trigg.nspname  || '.' ||  r_trigg.relname  ; 
+
+    end loop ; 
+
+  end if ; 
+  return new ; 
+end ;
+$BODY$ ; 
+
+create trigger _settrigg after insert on partition.table 
+for each row 
+execute procedure partition.set_trigger_def() ; 
