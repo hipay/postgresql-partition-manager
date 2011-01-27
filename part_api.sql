@@ -36,7 +36,9 @@ create or replace function partition.create
 	begin_date date,
 	end_date date,
 	OUT tables integer,
-	OUT indexes integer
+	OUT indexes integer,
+        OUT triggers integer,
+        OUT grants integer
 )
 returns record 
 LANGUAGE plpgsql
@@ -52,10 +54,15 @@ as $BODY$
     col text ; 
     qname text = i_schema || '.' || i_table ; 
     v_triggerdef text ; 
+    v_owner text ;
+    v_current_role text ;
+    t_grants int = 0 ; 
   begin
-
     tables = 0 ;
     indexes = 0 ; 
+    triggers = 0 ;
+    grants = 0 ; 
+
  
     FOR pmonth IN SELECT (begin_date + x * ('1 '||i_period)::interval )::date
                     FROM generate_series(0, partition.between(i_period, begin_date, end_date ) ) x
@@ -75,26 +82,34 @@ as $BODY$
 
           tables := tables + 1 ; 
   
-          FOR col IN SELECT * FROM (VALUES ( i_column  )) t(c)
+          FOR col IN SELECT * FROM (VALUES ( i_column )) t(c)
           LOOP
             EXECUTE 'CREATE INDEX idx_' || spart ||'_'||col|| ' ON ' || i_schema || '.' || spart || '('||col||')';
             indexes := indexes + 1;
           END LOOP;
   
-          -- create trigger 
-          
+          -- create trigger           
           for v_triggerdef in select replace( triggerdef,  qname ,  i_schema || '.' || spart  ) 
              from partition.trigger 
              where schemaname= i_schema and tablename = i_table
           loop
-
-            raise notice 'Trigger : % ', v_triggerdef ; 
-
             execute v_triggerdef ; 
-
+            triggers := triggers + 1;
           end loop ; 
 
+          select a.rolname, user into v_owner, v_current_role  
+            from pg_class c 
+              join pg_namespace n on c.relnamespace=n.oid 
+              join pg_authid a on c.relowner=a.oid 
+            where n.nspname= i_schema and c.relname= i_table ;
+
+          if v_owner <> v_current_role then
+            execute 'alter table '|| i_schema || '.' || spart ||' owner to ' || v_owner ; 
+          end if ; 
+ 
           -- grant role 
+          select partition.setgrant( i_schema, i_table, '_' || to_char ( pmonth , i_pattern ) ) into t_grants ; 
+          grants = grants + t_grants ; 
 
         exception when duplicate_table then
           raise notice 'Create Part : % ', SQLERRM ; 
@@ -117,9 +132,11 @@ create or replace function partition.create
 	begin_date    date,
 	end_date       date,
 	OUT o_tables  integer,
-	OUT o_indexes integer
+	OUT o_indexes integer,
+        OUT o_triggers integer,
+        OUT o_grants integer
 )
- returns record 
+returns record 
 LANGUAGE plpgsql
 set client_min_messages = warning
 as $BODY$
@@ -128,12 +145,17 @@ declare
   p_table record ;
 
   tables int = 0 ; 
-  indexes int = 0 ; 
+  indexes int = 0 ;
+  triggers int = 0 ; 
+  grants int = 0 ;
+ 
 
 begin
 
   o_tables = 0 ;
   o_indexes = 0 ; 
+  o_triggers = 0 ;
+  o_grants = 0 ; 
 
   for p_table in select t.schemaname, t.tablename, t.keycolumn, p.part_type, p.to_char_pattern 
                    from partition.table t , partition.pattern p 
@@ -142,10 +164,12 @@ begin
     loop 
 
     select * from partition.create( p_table.schemaname, p_table.tablename, p_table.keycolumn, p_table.part_type, p_table.to_char_pattern, begin_date, end_date ) 
-      into tables, indexes ; 
+      into tables, indexes, triggers, grants ; 
 
     o_tables = o_tables + tables ;
     o_indexes = o_indexes + indexes ; 
+    o_triggers = o_triggers + triggers ;
+    o_grants = o_grants + grants ; 
 
   end loop ; 
 
@@ -159,7 +183,9 @@ create or replace function partition.create
 (
 	begin_date date,
 	OUT tables integer,
-	OUT indexes integer
+	OUT indexes integer,
+	OUT triggers integer,
+	OUT grants integer
 )
 returns record 
 as $BODY$
@@ -170,7 +196,9 @@ LANGUAGE sql ;
 create or replace function partition.create
 (
 	OUT tables integer,
-	OUT indexes integer
+	OUT indexes integer,
+	OUT triggers integer,
+	OUT grants integer
 )
 returns record 
 as $BODY$
@@ -181,7 +209,9 @@ $BODY$
 create or replace function partition.create_next
 (
 	OUT o_tables  integer,
-	OUT o_indexes integer
+	OUT o_indexes integer, 
+	OUT o_triggers  integer,
+	OUT o_grants integer
 )
  returns record 
 LANGUAGE plpgsql
@@ -193,6 +223,8 @@ declare
 
   tables int = 0 ; 
   indexes int = 0 ; 
+  triggers int = 0 ; 
+  grants int = 0 ; 
 
 begin
 
@@ -212,10 +244,12 @@ begin
     loop 
 
     select * from partition.create( p_table.schemaname, p_table.tablename, p_table.keycolumn, p_table.part_type, p_table.to_char_pattern, p_table.pdate, p_table.pdate) 
-      into tables, indexes ; 
+      into tables, indexes, triggers, grants ; 
 
     o_tables = o_tables + tables ;
     o_indexes = o_indexes + indexes ; 
+    o_triggers = o_triggers + triggers ;
+    o_grants = o_grants + grants ; 
 
   end loop ; 
 
@@ -237,7 +271,7 @@ create or replace function partition.drop
 	OUT tables integer
 )
 returns integer
--- set client_min_messages = warning
+set client_min_messages = warning
 LANGUAGE plpgsql
 as $BODY$
   declare 
@@ -253,7 +287,7 @@ as $BODY$
 
     tables = 0 ;
  
-    raise notice 'i_schema %, i_table %, i_column %, i_period %, i_pattern %, retention_date %',i_schema, i_table, i_column, i_period, i_pattern, i_retention_date  ; 
+    -- raise notice 'i_schema %, i_table %, i_column %, i_period %, i_pattern %, retention_date %',i_schema, i_table, i_column, i_period, i_pattern, i_retention_date  ; 
  
     perform schemaname, tablename from partition.table where schemaname=i_schema and tablename=i_table and cleanable ; 
     if found then
@@ -354,3 +388,89 @@ from ( select
 ; 
 
 $BODY$ ; 
+
+
+create or replace function partition.grant_replace( p_acl text, p_grant text, p_ext_grant text )
+returns text 
+language plpgsql 
+as $BODY$
+declare
+  v_nb_grant int ; 
+  v_pos int ; 
+begin
+  select length( p_acl ) into v_nb_grant ; 
+  select position( p_grant in p_acl  ) into v_pos ;
+  if v_pos <> 0 and v_pos <> v_nb_grant then
+    return p_ext_grant || ', ' ;
+  elsif v_pos <> 0 and v_pos = v_nb_grant then
+    return p_ext_grant ;
+  else
+    return ''::text ;
+  end if ;
+end; 
+$BODY$ ; 
+
+create or replace function partition.grant( acl text, tablename text )
+returns text 
+language plpgsql 
+as $BODY$
+declare
+  v_grantee text ;
+  v_acl text ;
+  v_grant text ;  
+begin
+
+  select  split_part( split_part( acl,'/', 1), '=', 1 ) into v_grantee ;
+  select  split_part( split_part( acl,'/', 1), '=', 2 ) into v_acl ;
+
+  v_grant = 'GRANT ' ; 
+
+  v_grant =  v_grant || partition.grant_replace( v_acl, 'r','SELECT' ); 
+  v_grant =  v_grant || partition.grant_replace( v_acl, 'w','UPDATE' ); 
+  v_grant =  v_grant || partition.grant_replace( v_acl, 'a','INSERT' ); 
+  v_grant =  v_grant || partition.grant_replace( v_acl, 'd','DELETE' );
+  v_grant =  v_grant || partition.grant_replace( v_acl, 'D','TRUNCATE' );
+  v_grant =  v_grant || partition.grant_replace( v_acl, 'x','REFERENCES' ); 
+  v_grant =  v_grant || partition.grant_replace( v_acl, 't','TRIGGER' ); 
+ 
+  v_grant =  v_grant || ' ON TABLE ' || tablename || ' TO ' || v_grantee ;  
+
+  return v_grant ; 
+end; 
+$BODY$ ; 
+
+create or replace function partition.setgrant( p_schemaname text, p_tablename text, p_part text )
+returns int 
+language plpgsql 
+as $BODY$
+declare
+ v_acl text[] ; 
+ v_grant text ;  
+ i int = 0 ; 
+ v_nb_grant int = 0 ; 
+begin
+  select c.relacl into v_acl 
+    from pg_class c 
+      join pg_namespace n 
+        on c.relnamespace=n.oid 
+     where c.relkind='r' 
+       and n.nspname= p_schemaname 
+       and c.relname= p_tablename  ; 
+  if found then 
+    if v_acl is not null 
+    then
+      for i in array_lower( v_acl, 1)..array_upper( v_acl, 1 ) 
+      loop
+        select partition.grant(  v_acl[i], p_schemaname||'.'||p_tablename||p_part ) into v_grant ; 
+        execute v_grant ; 
+        -- raise notice 'ACL : % % ', i, v_acl[i] ; 
+        -- raise notice 'GRANT : % % ', i, v_grant ;
+        v_nb_grant =  v_nb_grant + 1  ; 
+      end loop ;
+    end if ; 
+  end if ;
+
+  return v_nb_grant ; 
+end; 
+$BODY$ ; 
+

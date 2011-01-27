@@ -47,3 +47,4 @@ insert into partition.pattern values
 
 
 commit ; 
+
