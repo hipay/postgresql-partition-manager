@@ -1,4 +1,3 @@
-
 begin ; 
 
 drop schema if exists partition cascade ; 

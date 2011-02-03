@@ -84,8 +84,26 @@ as $BODY$
   
           FOR col IN SELECT * FROM (VALUES ( i_column )) t(c)
           LOOP
-            EXECUTE 'CREATE INDEX idx_' || spart ||'_'||col|| ' ON ' || i_schema || '.' || spart || '('||col||')';
-            indexes := indexes + 1;
+
+            perform 1 from pg_catalog.pg_attribute a 
+              where a.attrelid in ( SELECT i.indexrelid
+                          FROM pg_catalog.pg_class c, 
+                               pg_catalog.pg_class c2, 
+                               pg_catalog.pg_namespace n,
+                               pg_catalog.pg_index i
+                          WHERE c.relname = spart
+                            AND n.nspname = i_schema  
+                            AND c.relnamespace = n.oid 
+                            AND c.oid = i.indrelid 
+                            AND i.indexrelid = c2.oid
+                      ) 
+              group by a.attrelid 
+              having count(*) = 1
+                 and ARRAY[ col ] @> array_agg( a.attname::text ) ; 
+            if not found then
+              EXECUTE 'CREATE INDEX idx_' || spart ||'_'||col|| ' ON ' || i_schema || '.' || spart || '('||col||')';
+              indexes := indexes + 1;
+            end if ; 
           END LOOP;
   
           -- create trigger           
