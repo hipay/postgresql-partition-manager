@@ -38,6 +38,7 @@ create table partition.trigger (
 insert into partition.pattern values 
     ('Y','year','YYYY', '1 month'),
     ('M','month','YYYYMM', '1 week'),
+    ('W','week','YYYYIW', '3 day'),
     ('D','day', 'YYYYMMDD', '1 day') 
 ;
 

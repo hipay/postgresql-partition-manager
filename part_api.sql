@@ -18,6 +18,8 @@ begin
     select 12 * extract(year from v_age)::integer + extract(month from v_age)::integer into v_ret ; 
   elsif i_period = 'day'::text then
     select end_date::date - begin_date::date into v_ret ; 
+  elsif i_period = 'week'::text then
+    select (end_date::date - begin_date::date)::integer / 7 into v_ret ; 
   else
     raise exception 'period % not yet implemented', i_period ; 
   end if ; 
