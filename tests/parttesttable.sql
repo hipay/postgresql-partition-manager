@@ -7,10 +7,13 @@ create role test login ;
 create schema test ; 
 grant usage on schema test to test ; 
 
+create table test.testfk ( id int primary key, label text ) ; 
+
 create table test.test1an ( id int, ev_date timestamptz default now() ) ; 
 create table test.test1mois ( id int, ev_date timestamptz default now() ) ; 
 create table test.test1week ( id int, ev_date timestamptz default now() ) ; 
-create table test.test1jour ( id int, ev_date timestamptz default now() ) ; 
+create table test.test1jour ( id int, ev_date timestamptz default now(), 
+                              label int references test.testfk( id ) ) ; 
 
 create sequence test.test1an_id_seq ;
 create sequence test.test1mois_id_seq ;
@@ -30,9 +33,14 @@ alter table test.test1mois alter column id set default nextval('test.test1mois_i
 alter table test.test1week alter column id set default nextval('test.test1week_id_seq');
 alter table test.test1jour alter column id set default nextval('test.test1jour_id_seq');
 
+
 grant select on test.test1an to test ; 
 grant select, update on test.test1mois to test ; 
+
 grant select, delete, insert, update on test.test1jour to test ; 
+
+grant select, delete, insert, update on test.testfk to test ; 
+
 
 create or replace function test.test_trigger () 
 returns trigger 
@@ -86,6 +94,11 @@ commit ;
 
 \c part test 
 
+begin ; 
+insert into test.testfk values ( 1, 'test1' ) ; 
+insert into test.testfk values ( 2, 'test2' ) ; 
+insert into test.testfk values ( 3, 'test3' ) ; 
+
 begin ;
 insert into test.test1an ( ev_date ) values ( now() ) ;
 insert into test.test1an ( ev_date ) values ( now() ) ;
@@ -110,6 +123,7 @@ commit ;
 begin ;
 insert into test.test1jour ( ev_date ) values ( now() ) ;
 insert into test.test1jour ( ev_date ) values ( now() ) ;
+insert into test.test1jour ( ev_date, label ) values ( now(), 1 ) ;
 update test.test1jour  set ev_date=now() where id=1 ; 
 update test.test1jour  set ev_date=now() where id=2 ; 
 commit ;

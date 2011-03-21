@@ -46,7 +46,6 @@ returns record
 LANGUAGE plpgsql
 set client_min_messages = warning
 as $BODY$
-
   declare 
     loval  date;
     hival  date;
@@ -59,6 +58,7 @@ as $BODY$
     v_owner text ;
     v_current_role text ;
     t_grants int = 0 ; 
+    v_constraint text ;  
   begin
     tables = 0 ;
     indexes = 0 ; 
@@ -107,7 +107,22 @@ as $BODY$
               indexes := indexes + 1;
             end if ; 
           END LOOP;
-  
+
+          -- create fk 
+
+          FOR v_constraint IN select ' add '||pg_get_constraintdef( con.oid , true ) 
+                                from pg_constraint con 
+                                    join pg_class c 
+                                      on con.conrelid=c.oid 
+                                    join pg_namespace n 
+                                      on c.relnamespace=n.oid 
+                                    where con.contype='f' 
+                                      and n.nspname = i_schema
+                                      and c.relname = i_table
+          loop 
+            execute ' ALTER TABLE ' || i_schema || '.' || spart ||  v_constraint ; 
+          end loop ; 
+
           -- create trigger           
           for v_triggerdef in select replace( triggerdef,  qname ,  i_schema || '.' || spart  ) 
              from partition.trigger 
