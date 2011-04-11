@@ -306,7 +306,7 @@ create or replace function partition.drop
 	OUT tables integer
 )
 returns integer
--- set client_min_messages = warning
+set client_min_messages = warning
 LANGUAGE plpgsql
 as $BODY$
   declare 
@@ -322,7 +322,7 @@ as $BODY$
 
     tables = 0 ;
  
-    raise notice 'i_schema %, i_table %, i_column %, i_period %, i_pattern %, retention_date %',i_schema, i_table, i_column, i_period, i_pattern, i_retention_date  ; 
+    -- raise notice 'i_schema %, i_table %, i_column %, i_period %, i_pattern %, retention_date %',i_schema, i_table, i_column, i_period, i_pattern, i_retention_date  ; 
  
     perform schemaname, tablename from partition.table where schemaname=i_schema and tablename=i_table and cleanable ; 
     if found then
@@ -367,7 +367,7 @@ create or replace function partition.drop
 )
  returns integer
 LANGUAGE plpgsql
--- set client_min_messages = warning
+set client_min_messages = warning
 as $BODY$
 declare
   p_table record ;
