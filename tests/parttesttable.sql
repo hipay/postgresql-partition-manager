@@ -88,7 +88,7 @@ select partition.create_part_trigger('test','test1mois') ;
 select partition.create_part_trigger('test','test1week') ;
 select partition.create_part_trigger('test','test1jour') ;
 
-select * from partition.create ( current_date , (current_date + interval '3 day')::date ) ;
+select * from partition.create ( (current_date - interval '6 month')::date  , (current_date + interval '3 day')::date ) ;
 
 commit ; 
 
@@ -129,3 +129,6 @@ update test.test1jour  set ev_date=now() where id=2 ;
 commit ;
 
 \c part postgres 
+
+
+select partition.drop() ; 
