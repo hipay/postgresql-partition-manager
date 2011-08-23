@@ -80,7 +80,7 @@ truncate table partition.table cascade ;
 insert into partition.table (schemaname, tablename, keycolumn, pattern, cleanable, retention_period)  values
           ('test','test1an','ev_date','Y','t','3 year'),
           ('test','test1mois','ev_date','M','f', null),
-          ('test','test1week','ev_date','W','f', null),
+          ('test','test1week','ev_date','W','t','3 weeks'),
           ('test','test1jour','ev_date','D','t','2 month') ;
 
 select partition.create_part_trigger('test','test1an') ;
@@ -98,6 +98,7 @@ begin ;
 insert into test.testfk values ( 1, 'test1' ) ; 
 insert into test.testfk values ( 2, 'test2' ) ; 
 insert into test.testfk values ( 3, 'test3' ) ; 
+commit ; 
 
 begin ;
 insert into test.test1an ( ev_date ) values ( now() ) ;

@@ -329,7 +329,7 @@ as $BODY$
 
       -- look up for older partition to drop 
       select min( to_date(substr(tablename, length(tablename) - length( i_pattern ) +1 , length(tablename)), i_pattern ) ) into begin_date 
-          from pg_tables where schemaname=i_schema and tablename ~ ('^'||i_table||'_[0-9]{'||length('YYYYMMDD')||'}') ;
+          from pg_tables where schemaname=i_schema and tablename ~ ('^'||i_table||'_[0-9]{'||length( i_pattern )||'}') ;
 
       FOR pmonth IN SELECT (begin_date + x * ('1 '||i_period)::interval )::date
                       FROM generate_series(0, partition.between(i_period, begin_date, i_retention_date ) ) x
@@ -383,7 +383,7 @@ begin
                   order by schemaname, tablename 
     loop 
 
-    select * from partition.drop( p_table.schemaname, p_table.tablename, p_table.keycolumn, p_table.part_type, p_table.to_char_pattern, p_table.retention_date::date  ) 
+    select * from partition.drop( p_table.schemaname, p_table.tablename, p_table.keycolumn, p_table.part_type, p_table.to_char_pattern, p_table.retention_date::date ) 
       into tables ; 
 
     o_tables = o_tables + tables ;
