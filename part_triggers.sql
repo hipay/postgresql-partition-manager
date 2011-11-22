@@ -66,7 +66,10 @@ declare
 begin
   if TG_OP = 'INSERT' then 
     for r_trigg in select n.nspname, c.relname, 
-                          t.tgname, pg_get_triggerdef( t.oid ) as triggerdef
+                          t.tgname, replace (pg_get_triggerdef( t.oid ), 
+                                             ' '||c.relname||' ', 
+                                             ' '||n.nspname||'.'||c.relname||' ') 
+                                      as triggerdef
       from pg_class c 
         join pg_namespace n on c.relnamespace=n.oid
         join pg_trigger t on c.oid=t.tgrelid 

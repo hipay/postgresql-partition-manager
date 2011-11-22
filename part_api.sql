@@ -294,7 +294,6 @@ end ;
 $BODY$
 ;
 
-
 create or replace function partition.drop
 (
 	i_schema text,
@@ -328,6 +327,8 @@ as $BODY$
     if found then
 
       -- look up for older partition to drop 
+      -- raise notice 'select min( to_date(substr( tablename, length(tablename) - length( % ) +1  ,length(tablename)) , % ) ) into begin_date from pg_tables where schemaname=% and tablename ~ ( % ) ;',  i_pattern , i_pattern, i_schema, '^'||i_table||'_[0-9]{'||length( i_pattern )||'}'  ;
+
       select min( to_date(substr(tablename, length(tablename) - length( i_pattern ) +1 , length(tablename)), i_pattern ) ) into begin_date 
           from pg_tables where schemaname=i_schema and tablename ~ ('^'||i_table||'_[0-9]{'||length( i_pattern )||'}') ;
 

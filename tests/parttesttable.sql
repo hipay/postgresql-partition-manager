@@ -7,6 +7,8 @@ create role test login ;
 create schema test ; 
 grant usage on schema test to test ; 
 
+set search_path = public, test ; 
+
 create table test.testfk ( id int primary key, label text ) ; 
 
 create table test.test1an ( id int, ev_date timestamptz default now() ) ; 
@@ -15,27 +17,35 @@ create table test.test1week ( id int, ev_date timestamptz default now() ) ;
 create table test.test1jour ( id int, ev_date timestamptz default now(), 
                               label int references test.testfk( id ) ) ; 
 
+create table test.test_mois ( id int, ev_date timestamptz default now() ) ; 
+
 create sequence test.test1an_id_seq ;
 create sequence test.test1mois_id_seq ;
 create sequence test.test1week_id_seq ;
 create sequence test.test1jour_id_seq ;
 
+create sequence test.test_mois_id_seq ;
+
 alter table test.test1mois owner to test ; 
 alter table test.test1week owner to test ; 
+alter table test.test_mois owner to test ; 
 
 grant select, update on test.test1an_id_seq to test ; 
 grant select, update on test.test1mois_id_seq to test ; 
 grant select, update on test.test1week_id_seq to test ; 
 grant select, update on test.test1jour_id_seq to test ; 
 
+grant select, update on test.test_mois_id_seq to test ; 
+
 alter table test.test1an alter column id set default nextval('test.test1an_id_seq');
 alter table test.test1mois alter column id set default nextval('test.test1mois_id_seq');
 alter table test.test1week alter column id set default nextval('test.test1week_id_seq');
 alter table test.test1jour alter column id set default nextval('test.test1jour_id_seq');
-
+alter table test.test_mois alter column id set default nextval('test.test_mois_id_seq');
 
 grant select on test.test1an to test ; 
 grant select, update on test.test1mois to test ; 
+grant select, update on test.test_mois to test ; 
 
 grant select, delete, insert, update on test.test1jour to test ; 
 
@@ -76,10 +86,15 @@ create trigger _insupdev before insert or update
   for each row 
   execute procedure test.test_trigger () ; 
 
+commit ; 
+
+begin ; 
+
 truncate table partition.table cascade ; 
 insert into partition.table (schemaname, tablename, keycolumn, pattern, cleanable, retention_period)  values
           ('test','test1an','ev_date','Y','t','3 year'),
           ('test','test1mois','ev_date','M','f', null),
+          ('test','test_mois','ev_date','M','t', '1 month'),
           ('test','test1week','ev_date','W','t','3 weeks'),
           ('test','test1jour','ev_date','D','t','2 month') ;
 
@@ -87,6 +102,7 @@ select partition.create_part_trigger('test','test1an') ;
 select partition.create_part_trigger('test','test1mois') ;
 select partition.create_part_trigger('test','test1week') ;
 select partition.create_part_trigger('test','test1jour') ;
+select partition.create_part_trigger('test','test_mois') ;
 
 select * from partition.create ( (current_date - interval '6 month')::date  , (current_date + interval '3 day')::date ) ;
 
@@ -131,5 +147,16 @@ commit ;
 
 \c part postgres 
 
+\dt test.
 
 select partition.drop() ; 
+
+select n.nspname, c.relname, t.tgname, 
+      pg_get_triggerdef( t.oid ),
+      replace (pg_get_triggerdef( t.oid ), ' '||c.relname||' ', ' '||n.nspname||'.'||c.relname||' ')
+
+      from pg_class c
+        join pg_namespace n on c.relnamespace=n.oid
+        join pg_trigger t on c.oid=t.tgrelid
+        where c.relkind='r'
+        and ( t.tgconstraint is null or t.tgconstraint = 0 );
