@@ -150,13 +150,3 @@ commit ;
 \dt test.
 
 select partition.drop() ; 
-
-select n.nspname, c.relname, t.tgname, 
-      pg_get_triggerdef( t.oid ),
-      replace (pg_get_triggerdef( t.oid ), ' '||c.relname||' ', ' '||n.nspname||'.'||c.relname||' ')
-
-      from pg_class c
-        join pg_namespace n on c.relnamespace=n.oid
-        join pg_trigger t on c.oid=t.tgrelid
-        where c.relkind='r'
-        and ( t.tgconstraint is null or t.tgconstraint = 0 );
