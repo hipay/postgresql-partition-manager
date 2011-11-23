@@ -64,12 +64,10 @@ as $BODY$
 declare
   r_trigg record ; 
 begin
+  set local search_path to pg_catalog ; 
   if TG_OP = 'INSERT' then 
-    for r_trigg in select n.nspname, c.relname, 
-                          t.tgname, replace (pg_get_triggerdef( t.oid ), 
-                                             ' '||c.relname||' ', 
-                                             ' '||n.nspname||'.'||c.relname||' ') 
-                                      as triggerdef
+    for r_trigg in select n.nspname, c.relname, t.tgname, 
+                          pg_get_triggerdef( t.oid ) as triggerdef
       from pg_class c 
         join pg_namespace n on c.relnamespace=n.oid
         join pg_trigger t on c.oid=t.tgrelid 
@@ -79,7 +77,7 @@ begin
     loop
 
       insert into partition.trigger values (  r_trigg.nspname, r_trigg.relname, r_trigg.tgname, r_trigg.triggerdef ) ; 
- 
+
       execute 'drop trigger ' || r_trigg.tgname || ' on ' || r_trigg.nspname  || '.' ||  r_trigg.relname  ; 
 
     end loop ; 
