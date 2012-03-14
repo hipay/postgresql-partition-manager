@@ -265,6 +265,8 @@ begin
 
   o_tables = 0 ;
   o_indexes = 0 ; 
+  o_triggers = 0 ;
+  o_grants = 0 ; 
 
   for p_table in select t.schemaname, t.tablename, t.keycolumn, p.part_type, p.to_char_pattern, (now() + p.next_part)::date as pdate 
                    from partition.table t 
