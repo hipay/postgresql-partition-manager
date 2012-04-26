@@ -164,6 +164,60 @@ $BODY$
 
 create or replace function partition.create
 (
+	i_schema text,
+	i_table text,
+	begin_date    date,
+	end_date       date,
+	OUT o_tables  integer,
+	OUT o_indexes integer,
+        OUT o_triggers integer,
+        OUT o_grants integer
+)
+returns record 
+LANGUAGE plpgsql
+set client_min_messages = warning
+as $BODY$
+declare
+
+  p_table record ;
+
+  tables int = 0 ; 
+  indexes int = 0 ;
+  triggers int = 0 ; 
+  grants int = 0 ;
+ 
+
+begin
+
+  o_tables = 0 ;
+  o_indexes = 0 ; 
+  o_triggers = 0 ;
+  o_grants = 0 ; 
+
+  for p_table in select t.schemaname, t.tablename, t.keycolumn, p.part_type, p.to_char_pattern 
+                   from partition.table t , partition.pattern p 
+                  where t.pattern=p.id and t.actif and t.schemaname = i_schema and t.tablename = i_table 
+                  order by schemaname, tablename 
+    loop 
+
+    select * from partition.create( p_table.schemaname, p_table.tablename, p_table.keycolumn, p_table.part_type, p_table.to_char_pattern, begin_date, end_date ) 
+      into tables, indexes, triggers, grants ; 
+
+    o_tables = o_tables + tables ;
+    o_indexes = o_indexes + indexes ; 
+    o_triggers = o_triggers + triggers ;
+    o_grants = o_grants + grants ; 
+
+  end loop ; 
+
+  return ;
+
+end ;
+$BODY$
+;
+
+create or replace function partition.create
+(
 	begin_date    date,
 	end_date       date,
 	OUT o_tables  integer,

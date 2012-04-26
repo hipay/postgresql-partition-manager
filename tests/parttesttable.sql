@@ -106,6 +106,8 @@ select partition.create_part_trigger('test','test_mois') ;
 
 select * from partition.create ( (current_date - interval '6 month')::date  , (current_date + interval '3 day')::date ) ;
 
+select * from partition.create ('test','test1mois', (current_date - interval '12 month')::date  , (current_date + interval '3 day')::date ) ;
+
 commit ; 
 
 \c part test 
