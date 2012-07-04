@@ -74,6 +74,7 @@ begin
         where c.relkind='r' 
         and ( t.tgconstraint is null or t.tgconstraint = 0 )
         and n.nspname = new.schemaname and c.relname = new.tablename 
+	and t.tgname != '_partitionne'
     loop
 
       insert into partition.trigger values (  r_trigg.nspname, r_trigg.relname, r_trigg.tgname, r_trigg.triggerdef ) ; 

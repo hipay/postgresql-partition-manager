@@ -1,3 +1,10 @@
+\c postgres
+drop database part;
+create database part;
+\c part
+
+\i partition.sql
+
 begin ; 
 drop schema if exists test cascade ;
 
@@ -152,3 +159,20 @@ commit ;
 \dt test.
 
 select partition.drop() ; 
+
+
+-- stupid test about _partitionne trigger. Never do that ! 
+begin;
+create temp table temptrg (like  partition.trigger);
+insert into temptrg select * from partition.trigger ;
+delete from partition.trigger ;
+delete from partition.table ;
+insert into partition.table (schemaname, tablename, keycolumn, pattern, cleanable, retention_period)  values
+          ('test','test1an','ev_date','Y','t','3 year'),
+          ('test','test1mois','ev_date','M','f', null),
+          ('test','test_mois','ev_date','M','t', '1 month'),
+          ('test','test1week','ev_date','W','t','3 weeks'),
+          ('test','test1jour','ev_date','D','t','2 month') ;
+insert into partition.trigger select * from temptrg ;
+select * from partition.trigger;
+commit;  
