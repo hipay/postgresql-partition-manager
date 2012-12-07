@@ -566,3 +566,11 @@ begin
 end; 
 $BODY$ ; 
 
+create or replace function partition.version( )
+returns text
+language sql 
+as $$
+select '0.1'::text
+$$ ;
+
+
