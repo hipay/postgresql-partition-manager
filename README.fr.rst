@@ -24,7 +24,8 @@ Les tables sont dans un schéma "partition" :
   - ``partition.trigger`` : triggers des tables partitionnées
 
 La table ``pattern`` contient les différents patterns de partitionnement. Sauf lors de l'ajout 
-de nouveaux patterns, il n'y a pas besoin de la modifier.
+de nouveaux patterns, il n'y a pas besoin de la modifier. Les différents pattern, et donc les 
+types de partitions, sont : ``year``, ``month``, ``week``, et ``day``.
 
 La table ``table`` contient la liste des tables que l'utilisateur souhaite partitionner. 
 Elle doit renseignée par l'utilisateur.
@@ -77,7 +78,7 @@ Configuration
 
 Il y a 2 opérations necessaire. La première est l'insertion des tables à partitionner dans ``partition."table"`` ::
 
-  INSERT INTO partition."table" 
+  INSERT INTO partition."table" ( schemaname, tablename, keycolumn, pattern, actif, cleanable, retention_period)
     values ('test', 'test1mois', 'ev_date', 'M', 't', 'f', null),
            ('test', 'test_mois', 'ev_date', 'M', 't', 't', '1 mon') ;
 
@@ -112,13 +113,16 @@ Ensuite, l'ensemble des partitions peuvent être crées avec les fonctions ``par
   (1 row)
 
 
-puis supprimmées avec la fonction ``partition.drop()`` ::
+puis supprimées avec la fonction ``partition.drop()`` ::
   
   part=$ select * from partition.drop() ;
    o_tables 
   ----------
           0
   (1 row)
+
+Seules les partitions ``cleanable`` et dont la période de rétention est passée seront supprimées. 
+
 
 Planifier la création
 :::::::::::::::::::::
@@ -131,7 +135,7 @@ a créer.
 Monitoring
 ::::::::::
 
-La fonction ``partition.check_next_part()`` permet la suveillance depuis Nagios :: 
+La fonction ``partition.check_next_part()`` permet la surveillance depuis Nagios :: 
   
   part=$ select * from partition.check_next_part() ;
    nagios_return_code |              message              

@@ -19,7 +19,8 @@ Tables are in "partition" schema :
   - ``partition.trigger`` : trigger's partitionning tables
 
 Table ``pattern``  contiens some partitioning patterns. Until there no new pattern, 
-there is no need to modify it.
+there is no need to modify it. Different patterns, and therefore
+partition types are: `` year ``, `` month ``, `` `` week, and `` day ``.
 
 Table ``table`` contains user's tables, and must be set by the user.
 
@@ -66,7 +67,7 @@ Setup
 
 There is two opérations needed to setup up partitionning table. One is insertion into ``partition."table"`` ::
 
-  INSERT INTO partition."table" 
+  INSERT INTO partition."table" ( schemaname, tablename, keycolumn, pattern, actif, cleanable, retention_period)
     values ('test', 'test1mois', 'ev_date', 'M', 't', 'f', null),
            ('test', 'test_mois', 'ev_date', 'M', 't', 't', '1 mon') ;
 
@@ -108,20 +109,20 @@ then dropped by ``partition.drop()`` function ::
           0
   (1 row)
 
+Only partitions ``cleanable``  and whose retention period has passed will be deleted.
+
 Schedule Creation
 :::::::::::::::::
 
-
-
-La création des prochaines partitions, celle du mois prochain ou du jour prochain, peut être
-créé simplement avec la fonction ``partition.create_next()`` . Cette fonction s'appuie sur la
-colonne ``next_part`` de la table ``partition.pattern`` pour déterminer la date de la partition
-a créer. 
+The creation of the next partitions, the next month or the next day, can be
+created simply with the ``partition.create_next ()``. This function is based on the
+``next_part`` column of the table ``partition.pattern`` to determine the date of the partition
+to create.
 
 Monitoring
 ::::::::::
 
-La fonction ``partition.check_next_part()`` permet la suveillance depuis Nagios :: 
+``partition.check_next_part()`` function allows monitoring from Nagios ::
   
   part=$ select * from partition.check_next_part() ;
    nagios_return_code |              message              
