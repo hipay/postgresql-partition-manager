@@ -462,7 +462,7 @@ returns record
 language sql
 as $BODY$
 
-select case when count(missing_tables) > 0 then 2::int else 0::int end, 'Missing : ' || string_agg( missing_tables,', ') 
+select case when count(missing_tables) > 0 then 2::int else 0::int end, coalesce('Missing : ' || string_agg( missing_tables,', ') , 'RAS')
 from ( select
   t.schemaname ||'.'|| t.tablename 
     ||'_'|| to_char ( now() + p.next_part , p.to_char_pattern  ) 
